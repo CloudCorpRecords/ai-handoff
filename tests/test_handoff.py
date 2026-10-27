@@ -51,6 +51,14 @@ class Handoff(unittest.TestCase):
         hc.answer_question(self.repo, "B", "Q2 via ask?", "yes")
         self.assertEqual(hc.status(self.repo)["open_questions"], ["Q1 in a section?"])
 
+    def test_non_git_repo_refused_and_creates_nothing(self):
+        plain = Path(tempfile.mkdtemp(prefix="handoff-nogit-"))
+        with self.assertRaises(hc.HandoffError):
+            hc.find_repo(str(plain))
+        out = serve([call(1, "handoff_status", {"repo": str(plain)})])
+        self.assertTrue(out[0]["result"].get("isError"))
+        self.assertFalse((plain / "docs" / "AI_HANDOFF.md").exists())
+
     def test_repo_argument_beats_env(self):
         other = git_repo()
         os.environ["AI_HANDOFF_REPO"] = str(other)

@@ -11,7 +11,9 @@ translate between them. This skill is the shared protocol.
 ## The file
 
 - One handoff file per repo: `docs/AI_HANDOFF.md` at the git repo root.
-- If there is no git repo, use `AI_HANDOFF.md` in the working directory.
+- Outside a git repo the tools refuse: start inside a repo, or pass
+  `repo=<path>` (or set `AI_HANDOFF_REPO`). Never create a stray handoff
+  file in a non-repo folder.
 - The file is append-only history. Never rewrite, reorder, or delete earlier
   sections. Disagreements are new sections, not edits to old ones.
 - Never put secrets, tokens, passwords, or private keys in the handoff.

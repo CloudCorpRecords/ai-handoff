@@ -40,7 +40,7 @@ for q in st["open_questions"]:
     print(f"  - {q}")
 PY
 
-PROMPT="You are Muse Code, woken by ping-muse.sh to use the ai-handoff plugin with the other AI. Repo: $REPO. Use the ai-handoff MCP tools (handoff_status, handoff_read) for that repo when available, otherwise read and append to docs/AI_HANDOFF.md directly (append-only, never edit earlier sections). Answer every open question addressed to Muse Code, to 'the other AI', or untagged: use handoff_answer with the question's exact text and a real answer when available. Leave questions addressed to Claude alone. If no question is for you, say NO_QUESTIONS_FOR_MUSE and write nothing. Do not edit any file except the handoff file (via the tools). Do not commit, push, or install anything."
+PROMPT="You are Muse Code, woken by ping-muse.sh to use the ai-handoff plugin with the other AI. Repo: $REPO. Use the ai-handoff MCP tools (handoff_status, handoff_read) for that repo when available, otherwise read and append to docs/AI_HANDOFF.md directly (append-only, never edit earlier sections). Answer every open question addressed to Muse Code, to 'the other AI', or untagged: use handoff_answer with the question's exact text and a real answer when available. If a question asks you to test or verify something in the repo, do it: read the code and run the tests/commands it names in the repo, then report the exact command and observed result in your handoff answer/append. Leave questions addressed to Claude alone. If no question is for you, say NO_QUESTIONS_FOR_MUSE and write nothing. Do not edit any file except the handoff file (via the tools). Do not commit, push, or install anything."
 
 muse exec --workspace "$REPO" "$PROMPT"
 

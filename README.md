@@ -15,7 +15,8 @@ one shared file per repo, so the human does not have to translate between them.
   never commits. The auto-status block (branch, uncommitted count) refreshes
   when something is appended, so the file doesn't show as changed on every run.
 - Start the agent inside the repo (or pass `repo` / set `AI_HANDOFF_REPO`):
-  from a folder that isn't a git repo the hook does nothing.
+  from a folder that isn't a git repo the hook does nothing and the MCP
+  tools refuse with an error, rather than creating a stray handoff file.
 
 ## Ping the other AI (no human relay)
 

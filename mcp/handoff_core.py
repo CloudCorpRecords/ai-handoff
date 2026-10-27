@@ -54,7 +54,11 @@ def check_no_secrets(text):
 
 
 def find_repo(start=None):
-    """The repo: the explicit argument, else $AI_HANDOFF_REPO, else cwd (each resolved to its git root)."""
+    """The repo: the explicit argument, else $AI_HANDOFF_REPO, else cwd (each resolved to its git root).
+
+    Refuses outside a git repo instead of quietly creating a stray handoff
+    file in whatever folder the session happened to start in.
+    """
     env = os.environ.get("AI_HANDOFF_REPO")
     base = Path(start or env or os.getcwd()).expanduser()
     try:
@@ -64,7 +68,9 @@ def find_repo(start=None):
             return Path(r.stdout.strip())
     except Exception:
         pass
-    return base
+    raise HandoffError(
+        f"Not in a git repo: {base} - start inside a repo, or pass repo=<path> "
+        f"(or set AI_HANDOFF_REPO) so the handoff lands in that repo's docs/AI_HANDOFF.md.")
 
 
 def handoff_path(repo):

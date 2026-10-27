@@ -28,7 +28,10 @@ def main():
         pass
     try:
         import handoff_core as hc
-        repo = hc.find_repo(cwd)
+        try:
+            repo = hc.find_repo(cwd)
+        except hc.HandoffError:
+            return  # outside a git repo: stay silent, create nothing
         marker = Path("/tmp") / ("ai-handoff-" +
                                  hashlib.sha256(str(repo).encode()).hexdigest()[:12])
         now = time.time()
