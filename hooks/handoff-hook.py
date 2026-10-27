@@ -2,7 +2,7 @@
 """handoff-sync PreToolUse hook. Stdlib only. Never blocks: always exits 0.
 
 Throttled to one run per repo per 60s. Creates docs/AI_HANDOFF.md from the
-template when a git repo has none, refreshes the auto-status block, and prints
+template when a git repo has none and prints
 the last section heading plus open questions so the reading AI sees them.
 It never edits history sections and never commits anything.
 """
@@ -37,7 +37,7 @@ def main():
         marker.write_text(str(now))
         if not (repo / ".git").exists():
             return
-        hc.refresh_auto(repo)
+        hc.ensure(repo)          # the auto-status block refreshes on each append, not here (no churn in git)
         st = hc.status(repo)
         print(f"[ai-handoff] {st['last_section'] or 'no sections yet'} "
               f"({st['uncommitted']} uncommitted, {st['path']})")

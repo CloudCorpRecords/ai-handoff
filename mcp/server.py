@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """ai-handoff MCP server (stdio, newline-delimited JSON-RPC). Stdlib only.
 
-Tools: handoff_read, handoff_append, handoff_ask, handoff_status.
+Tools: handoff_read, handoff_append, handoff_ask, handoff_answer, handoff_status.
 Repo: the `repo` argument, else $AI_HANDOFF_REPO, else the git root of cwd.
 File: docs/AI_HANDOFF.md in that repo (created from a template if missing).
 """
@@ -28,6 +28,10 @@ TOOLS = [
      "inputSchema": {"type": "object", "required": ["question"], "properties": {
          "repo": {"type": "string"}, "author": {"type": "string"},
          "target": {"type": "string"}, "question": {"type": "string"}}}},
+    {"name": "handoff_answer", "description": "Mark an open question answered (by its exact text), with an optional answer. It drops out of open questions.",
+     "inputSchema": {"type": "object", "required": ["question"], "properties": {
+         "repo": {"type": "string"}, "author": {"type": "string"},
+         "question": {"type": "string"}, "answer": {"type": "string"}}}},
     {"name": "handoff_status", "description": "Branch, uncommitted count, section count, last section, open questions.",
      "inputSchema": {"type": "object", "properties": {"repo": {"type": "string"}}}},
 ]
@@ -46,6 +50,9 @@ def call_tool(name, args):
         return hc.append_question(repo, args.get("author") or "unknown AI",
                                   args.get("target") or "the other AI",
                                   args.get("question") or "")
+    if name == "handoff_answer":
+        return hc.answer_question(repo, args.get("author") or "unknown AI",
+                                  args.get("question") or "", args.get("answer") or "")
     if name == "handoff_status":
         return hc.status(repo)
     raise hc.HandoffError(f"Unknown tool: {name}")

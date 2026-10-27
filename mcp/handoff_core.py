@@ -54,8 +54,9 @@ def check_no_secrets(text):
 
 
 def find_repo(start=None):
+    """The repo: the explicit argument, else $AI_HANDOFF_REPO, else cwd (each resolved to its git root)."""
     env = os.environ.get("AI_HANDOFF_REPO")
-    base = Path(env or start or os.getcwd()).expanduser()
+    base = Path(start or env or os.getcwd()).expanduser()
     try:
         r = subprocess.run(["git", "-C", str(base), "rev-parse", "--show-toplevel"],
                            capture_output=True, text=True, timeout=5)
@@ -110,25 +111,34 @@ def refresh_auto(repo):
 
 
 def _locked_append(path, text):
+    """Append under an exclusive lock file. If another writer holds it past the deadline, refuse rather than
+    write over it, and never remove a lock this call doesn't own."""
     lock = path.with_suffix(".lock")
     deadline = time.time() + 10
     fd = None
-    while time.time() < deadline:
+    while fd is None:
         try:
             fd = os.open(str(lock), os.O_CREAT | os.O_EXCL | os.O_WRONLY)
-            break
         except FileExistsError:
+            if time.time() >= deadline:
+                raise HandoffError(f"Another writer holds {lock.name}; nothing was written. Try again.")
             time.sleep(0.1)
     try:
         with open(path, "a", encoding="utf-8") as f:
             f.write(text)
     finally:
-        if fd is not None:
-            os.close(fd)
+        os.close(fd)
         try:
             lock.unlink()
         except OSError:
             pass
+
+
+def _rel(repo, path):
+    try:
+        return str(Path(path).relative_to(repo))
+    except ValueError:
+        return str(path)
 
 
 def _bullets(items, empty="- none"):
@@ -149,7 +159,8 @@ def append_section(repo, author, changed=None, verified=None, decisions=None,
                f"### Open\n{_bullets(open_items)}\n\n"
                f"### Questions for the other AI\n{_bullets(questions)}\n")
     _locked_append(path, section)
-    return {"path": str(path), "section": section.strip().splitlines()[0]}
+    refresh_auto(repo)
+    return {"path": _rel(repo, path), "section": section.strip().splitlines()[0]}
 
 
 def append_question(repo, author, target, question):
@@ -158,33 +169,55 @@ def append_question(repo, author, target, question):
     section = (f"\n## {date.today().isoformat()} - {author} asks {target}\n\n"
                f"- {str(question).strip()}\n")
     _locked_append(path, section)
-    return {"path": str(path), "question": str(question).strip()}
+    refresh_auto(repo)
+    return {"path": _rel(repo, path), "question": str(question).strip()}
+
+
+def answer_question(repo, author, question, answer=""):
+    """Mark an open question answered (it drops out of open_questions); history is appended, never edited."""
+    question = str(question).strip()
+    check_no_secrets(question + "\n" + str(answer or ""))
+    if not question:
+        raise HandoffError("Say which question this answers.")
+    path = ensure(repo)
+    section = (f"\n## {date.today().isoformat()} - {author} answers\n\n"
+               f"- Answered: {question}\n" + (f"- {str(answer).strip()}\n" if str(answer or "").strip() else ""))
+    _locked_append(path, section)
+    refresh_auto(repo)
+    return {"path": _rel(repo, path), "answered": question}
 
 
 def read_handoff(repo, tail_chars=12000):
     path = ensure(repo)
     text = path.read_text(encoding="utf-8")
     tail = text[-tail_chars:] if len(text) > tail_chars else text
-    return {"path": str(path), "chars": len(text), "truncated": len(text) > tail_chars,
+    return {"path": _rel(repo, path), "chars": len(text), "truncated": len(text) > tail_chars,
             "content": tail}
+
+
+def open_questions(text):
+    """Questions still waiting: '### Questions' bullets and handoff_ask sections, minus any marked 'Answered:'."""
+    asked, answered = [], set()
+    in_q = False
+    for line in text.splitlines():
+        if line.startswith("## "):
+            in_q = " asks " in line
+        elif line.startswith("### "):
+            in_q = line.startswith("### Questions")
+        elif line.startswith("- Answered:"):
+            answered.add(line[len("- Answered:"):].strip())
+        elif in_q and line.startswith("- ") and line.strip() != "- none":
+            asked.append(line[2:].strip())
+    return [q for q in asked if q not in answered]
 
 
 def status(repo):
     path = ensure(repo)
     text = path.read_text(encoding="utf-8")
     headings = re.findall(r"^## .+$", text, flags=re.M)
-    questions = []
-    in_q = False
-    for line in text.splitlines():
-        if line.startswith("### Questions"):
-            in_q = True
-        elif line.startswith("###") or line.startswith("## "):
-            in_q = False
-        elif in_q and line.startswith("- ") and line.strip() != "- none":
-            questions.append(line[2:].strip())
     dirty = [l for l in _git(repo, "status", "--porcelain").splitlines() if l.strip()]
-    return {"path": str(path), "repo": str(repo),
+    return {"path": _rel(repo, path), "repo": Path(repo).name,
             "branch": _git(repo, "branch", "--show-current"),
             "uncommitted": len(dirty), "sections": len(headings),
             "last_section": headings[-1] if headings else None,
-            "open_questions": questions[-10:]}
+            "open_questions": open_questions(text)[-10:]}

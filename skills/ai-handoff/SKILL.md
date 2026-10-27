@@ -59,11 +59,13 @@ translate between them. This skill is the shared protocol.
 
 Use `handoff_ask` (or append a Questions section) when you need a decision or
 information only the other tool or session has. Tag who it is for. Keep working
-on everything that does not depend on the answer.
+on everything that does not depend on the answer. When you've answered one,
+call `handoff_answer` with its exact text so it leaves the open list.
 
 ## The automatic hook
 
 A PreToolUse hook (`hooks/handoff-hook.py`) runs throttled. It creates the
-handoff file from a template when a git repo has none, refreshes an
-auto-status block (branch and dirty-file count), and prints open questions.
+handoff file from a template when a git repo has none and prints open
+questions. The auto-status block (branch and dirty-file count) refreshes on
+each append.
 It never edits the human/AI history sections and never commits anything.
